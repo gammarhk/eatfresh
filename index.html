@@ -203,9 +203,9 @@
         const file = files[s];
         onProgress?.(`Reading "${file.name}" (${s+1}/${files.length})...`);
 
-        // Read columns A-C: Name, Category, Purchase Date
+        // Read columns A-D: Name, Category, Purchase Date, Unit Price
         const sheetRes = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${file.id}/values/A:C`,
+          `https://sheets.googleapis.com/v4/spreadsheets/${file.id}/values/A:D`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (sheetRes.ok) {
@@ -213,13 +213,15 @@
           console.log(`[EatFresh] Sheet "${file.name}" values:`, values);
           if (values && values.length > 1) {
             for (let i = 1; i < values.length; i++) {
-              const [name, rawCat, rawDate] = values[i] || [];
+              const [name, rawCat, rawDate, rawPrice] = values[i] || [];
               if (!name) continue;
               const category = mapCategory(rawCat);
               const purchaseDate = rawDate || today();
+              const unitPrice = rawPrice ? parseFloat(rawPrice.toString().replace(/[^0-9.]/g,"")) : null;
               allItems.push({
                 id: uid(), name: name.trim(), category, purchaseDate,
                 expiryDate: calcExpiry(purchaseDate, category), frozen: false,
+                unitPrice: unitPrice || null,
               });
             }
           }
@@ -301,9 +303,11 @@
                     {item.name}<span style={{fontSize:11,color:"#A8A29E",marginLeft:6,fontWeight:400}}>✏️</span>
                   </div>
                 )}
-                <div style={{fontSize:12,color:"#78716C",marginTop:3}}>Bought {fmtMMDD(item.purchaseDate)}</div>
+                <div style={{fontSize:12,color:"#78716C",marginTop:3}}>
+                  Bought {fmtMMDD(item.purchaseDate)}{item.unitPrice ? ` · £${item.unitPrice.toFixed(2)}` : ""}
+                </div>
               </div>
-              <div style={{background:cat.color,color:"#fff",borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:600,whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:4}}>{cat.emoji} {cat.label}</div>
+              <div style={{fontSize:20}} title={cat.label}>{cat.emoji}</div>
             </div>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
               <div style={{display:"flex",alignItems:"center",gap:6}}>
@@ -330,7 +334,7 @@
           <div>
             <span style={{fontSize:15,color:"#78716C",textDecoration:"line-through"}}>{item.name}</span>
             <span style={{fontSize:12,color:"#A8A29E",marginLeft:8}}>{cat.emoji}</span>
-            <div style={{fontSize:11,color:"#A8A29E",marginTop:2}}>Used on {fmtMMDD(item.usedDate)}</div>
+            <div style={{fontSize:11,color:"#A8A29E",marginTop:2}}>Used on {fmtMMDD(item.usedDate)}{item.unitPrice ? ` · £${item.unitPrice.toFixed(2)}` : ""}</div>
           </div>
           <button onClick={()=>onUndo(item.id)} style={{background:"#fff",border:"1.5px solid #D6D3D1",borderRadius:8,padding:"5px 12px",fontSize:12,cursor:"pointer",color:"#57534E",fontWeight:600}}>↩ Undo</button>
         </div>
@@ -342,8 +346,9 @@
       const [name, setName] = useState("");
       const [cat, setCat] = useState("other");
       const [date, setDate] = useState(today());
+      const [price, setPrice] = useState("");
       if (!open) return null;
-      const submit = () => { if(!name.trim())return; onAdd({name:name.trim(),category:cat,purchaseDate:date}); setName("");setCat("other");setDate(today());onClose(); };
+      const submit = () => { if(!name.trim())return; onAdd({name:name.trim(),category:cat,purchaseDate:date,unitPrice:price?parseFloat(price):null}); setName("");setCat("other");setDate(today());setPrice("");onClose(); };
       return (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:100,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={onClose}>
           <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"24px 20px 32px",width:"100%",maxWidth:480,animation:"slideUp .3s ease"}}>
@@ -355,9 +360,16 @@
                 <button key={k} onClick={()=>setCat(k)} style={{padding:"6px 14px",borderRadius:20,fontSize:13,fontWeight:600,border:a?`2px solid ${c.color}`:"1.5px solid #E7E5E4",background:a?c.color+"18":"#FAFAF9",color:a?c.color:"#78716C",cursor:"pointer"}}>{c.emoji} {c.label}</button>
               );})}
             </div>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
-              <span style={{fontSize:14,color:"#57534E",fontWeight:600}}>Purchase date</span>
-              <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={{flex:1,padding:"8px 12px",fontSize:14,border:"1.5px solid #D6D3D1",borderRadius:8,outline:"none",fontFamily:"inherit"}} />
+            <div style={{display:"flex",gap:10,marginBottom:18}}>
+              <div style={{flex:1,display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:14,color:"#57534E",fontWeight:600,whiteSpace:"nowrap"}}>Date</span>
+                <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={{flex:1,padding:"8px 12px",fontSize:14,border:"1.5px solid #D6D3D1",borderRadius:8,outline:"none",fontFamily:"inherit"}} />
+              </div>
+              <div style={{width:100,display:"flex",alignItems:"center",gap:6}}>
+                <span style={{fontSize:14,color:"#57534E",fontWeight:600}}>£</span>
+                <input type="number" step="0.01" placeholder="0.00" value={price} onChange={e=>setPrice(e.target.value)}
+                  style={{width:"100%",padding:"8px 10px",fontSize:14,border:"1.5px solid #D6D3D1",borderRadius:8,outline:"none",fontFamily:"inherit"}} />
+              </div>
             </div>
             <div style={{display:"flex",gap:10}}>
               <button onClick={onClose} style={{flex:1,padding:"13px",borderRadius:12,border:"1.5px solid #D6D3D1",background:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",color:"#78716C"}}>Cancel</button>
@@ -410,6 +422,7 @@
       const [items, setItems] = useState([]);
       const [history, setHistory] = useState([]);
       const [tab, setTab] = useState("active");
+      const [filterCat, setFilterCat] = useState(null);
       const [showAdd, setShowAdd] = useState(false);
       const [syncing, setSyncing] = useState(false);
       const [syncMsg, setSyncMsg] = useState("");
@@ -496,8 +509,8 @@
       };
 
       // ── Item ops ───────────────────────────────────────────────
-      const addItem = ({name,category,purchaseDate}) => {
-        setItems(prev=>[...prev,{id:uid(),name,category,purchaseDate,expiryDate:calcExpiry(purchaseDate,category),frozen:false}]);
+      const addItem = ({name,category,purchaseDate,unitPrice}) => {
+        setItems(prev=>[...prev,{id:uid(),name,category,purchaseDate,expiryDate:calcExpiry(purchaseDate,category),frozen:false,unitPrice:unitPrice||null}]);
         flash(`Added ${name}`);
       };
       const updateItem = (u) => setItems(prev=>prev.map(i=>i.id===u.id?u:i));
@@ -518,7 +531,9 @@
         flash(`${item.name} restored`);
       };
 
-      const sorted=[...items].sort((a,b)=>effectiveDays(a)-effectiveDays(b));
+      const filtered = filterCat ? items.filter(i=>i.category===filterCat) : items;
+      const sorted=[...filtered].sort((a,b)=>effectiveDays(a)-effectiveDays(b));
+      const filteredHistory = filterCat ? history.filter(i=>i.category===filterCat) : history;
       const urgent=items.filter(i=>effectiveDays(i)<=3).length;
 
       if(!auth) return <LoginScreen onLogin={handleLogin} syncing={syncing} syncMsg={syncMsg} />;
@@ -555,7 +570,21 @@
             ))}
           </div>
 
-          <div style={{padding:"16px 20px",display:"flex",flexDirection:"column",gap:10}}>
+          {/* Category filter */}
+          <div style={{display:"flex",gap:6,padding:"10px 20px 0",overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+            <button onClick={()=>setFilterCat(null)} style={{
+              padding:"6px 12px",borderRadius:20,fontSize:13,border:!filterCat?"2px solid #1C1917":"1.5px solid #E7E5E4",
+              background:!filterCat?"#1C1917":"#FAFAF9",color:!filterCat?"#fff":"#78716C",cursor:"pointer",fontWeight:600,whiteSpace:"nowrap",
+            }}>All</button>
+            {CAT_KEYS.map(k=>{const c=CATEGORIES[k];const on=filterCat===k;return(
+              <button key={k} onClick={()=>setFilterCat(on?null:k)} style={{
+                padding:"6px 10px",borderRadius:20,fontSize:16,border:on?`2px solid ${c.color}`:"1.5px solid #E7E5E4",
+                background:on?c.color+"18":"#FAFAF9",cursor:"pointer",whiteSpace:"nowrap",lineHeight:1,
+              }} title={c.label}>{c.emoji}</button>
+            );})}
+          </div>
+
+          <div style={{padding:"10px 20px 16px",display:"flex",flexDirection:"column",gap:10}}>
             {tab==="active"?(
               sorted.length===0?(
                 <div style={{textAlign:"center",padding:"60px 20px",color:"#A8A29E"}}>
@@ -570,12 +599,12 @@
                 </>
               )
             ):(
-              history.length===0?(
+              filteredHistory.length===0?(
                 <div style={{textAlign:"center",padding:"60px 20px",color:"#A8A29E"}}>
                   <div style={{fontSize:48,marginBottom:12}}>📭</div>
                   <div style={{fontSize:16,fontWeight:700}}>No history yet</div>
                 </div>
-              ):history.map(item=><HistoryCard key={item.id} item={item} onUndo={undoUsed} />)
+              ):filteredHistory.map(item=><HistoryCard key={item.id} item={item} onUndo={undoUsed} />)
             )}
           </div>
 
