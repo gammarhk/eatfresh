@@ -49,6 +49,7 @@
       dairy:     { label: "Dairy",      emoji: "🥛", days: 7,   color: "#7C3AED" },
       fruit:     { label: "Fruit",      emoji: "🍎", days: 10,  color: "#EA580C" },
       canned:    { label: "Canned/Dry", emoji: "🥫", days: 365, color: "#78716C" },
+      bakery:    { label: "Bakery",     emoji: "🍞", days: 5,   color: "#D97706" },
       other:     { label: "Other",      emoji: "📦", days: 5,   color: "#6B7280" },
     };
     const CAT_KEYS = Object.keys(CATEGORIES);
@@ -73,7 +74,9 @@
       peach:"fruit",plum:"fruit",lemon:"fruit",lime:"fruit",melon:"fruit",kiwi:"fruit",avocado:"fruit",
       canned:"canned",can:"canned",tin:"canned",rice:"canned",pasta:"canned",noodle:"canned",
       flour:"canned",sauce:"canned",oil:"canned",dried:"canned",cereal:"canned",
-      bread:"canned",frozen:"canned",crisp:"canned",biscuit:"canned",stock:"canned",
+      frozen:"canned",crisp:"canned",biscuit:"canned",stock:"canned",
+      bakery:"bakery",bread:"bakery",croissant:"bakery",muffin:"bakery",pastry:"bakery",
+      cake:"bakery",roll:"bakery",bun:"bakery",bagel:"bakery",scone:"bakery",sourdough:"bakery",
     };
 
     function mapCategory(raw) {
@@ -88,6 +91,13 @@
     function effectiveDays(it) { const r = daysLeft(it.expiryDate); return it.frozen ? Math.round(r*2) : r; }
     function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
     function today() { return new Date().toISOString().slice(0,10); }
+    function fmtMMDD(dateStr) {
+      const d = new Date(dateStr + "T00:00:00");
+      return d.toLocaleDateString("en-GB", { month: "short", day: "numeric" });
+    }
+    function fmtToday() {
+      return new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    }
 
     function expiryBadge(d) {
       if (d<=0) return {bg:"#EF4444",label:"Expired"};
@@ -251,15 +261,15 @@
     }
 
     // ─── SwipeCard ───────────────────────────────────────────────────
-    function SwipeCard({ children, onSwipeLeft }) {
+    function SwipeCard({ children, onSwipe }) {
       const ref = useRef(null);
       const sx = useRef(0), dx = useRef(0), on = useRef(false);
       const start = (e) => { on.current=true; sx.current=e.touches?e.touches[0].clientX:e.clientX; dx.current=0; };
-      const move = (e) => { if(!on.current)return; const x=e.touches?e.touches[0].clientX:e.clientX; const d=x-sx.current; if(d<0){dx.current=d; if(ref.current)ref.current.style.transform=`translateX(${Math.max(d,-120)}px)`;} };
-      const end = () => { if(!on.current)return; on.current=false; if(dx.current<-80){if(ref.current){ref.current.style.transform="translateX(-100%)";ref.current.style.opacity="0";}setTimeout(()=>onSwipeLeft?.(),250);}else{if(ref.current)ref.current.style.transform="translateX(0)";} };
+      const move = (e) => { if(!on.current)return; const x=e.touches?e.touches[0].clientX:e.clientX; const d=x-sx.current; if(d>0){dx.current=d; if(ref.current)ref.current.style.transform=`translateX(${Math.min(d,120)}px)`;} };
+      const end = () => { if(!on.current)return; on.current=false; if(dx.current>80){if(ref.current){ref.current.style.transform="translateX(100%)";ref.current.style.opacity="0";}setTimeout(()=>onSwipe?.(),250);}else{if(ref.current)ref.current.style.transform="translateX(0)";} };
       return (
         <div style={{position:"relative",overflow:"hidden",borderRadius:14}}>
-          <div style={{position:"absolute",right:0,top:0,bottom:0,width:120,background:"linear-gradient(90deg,#FCA5A5,#EF4444)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:15,borderRadius:14}}>Used ✓</div>
+          <div style={{position:"absolute",left:0,top:0,bottom:0,width:120,background:"linear-gradient(270deg,#FCA5A5,#EF4444)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:15,borderRadius:14}}>✓ Used</div>
           <div ref={ref} onTouchStart={start} onTouchMove={move} onTouchEnd={end} onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
             style={{position:"relative",zIndex:1,transition:on.current?"none":"transform .25s,opacity .25s",cursor:"grab",userSelect:"none"}}>{children}</div>
         </div>
@@ -279,7 +289,7 @@
       const adj = (d) => { const dt=new Date(item.expiryDate); dt.setDate(dt.getDate()+d); onUpdate({...item,expiryDate:dt.toISOString().slice(0,10)}); };
       const saveName = () => { setEditing(false); if(editName.trim()&&editName.trim()!==item.name) onUpdate({...item,name:editName.trim()}); else setEditName(item.name); };
       return (
-        <SwipeCard onSwipeLeft={()=>onUse(item.id)}>
+        <SwipeCard onSwipe={()=>onUse(item.id)}>
           <div style={{background:cb.bg,border:`1.5px solid ${cb.border}`,borderRadius:14,padding:"14px 16px",display:"flex",flexDirection:"column",gap:10}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
               <div style={{flex:1,minWidth:0}}>
@@ -291,14 +301,14 @@
                     {item.name}<span style={{fontSize:11,color:"#A8A29E",marginLeft:6,fontWeight:400}}>✏️</span>
                   </div>
                 )}
-                <div style={{fontSize:12,color:"#78716C",marginTop:3}}>Bought {item.purchaseDate}</div>
+                <div style={{fontSize:12,color:"#78716C",marginTop:3}}>Bought {fmtMMDD(item.purchaseDate)}</div>
               </div>
               <div style={{background:cat.color,color:"#fff",borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:600,whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:4}}>{cat.emoji} {cat.label}</div>
             </div>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
               <div style={{display:"flex",alignItems:"center",gap:6}}>
                 <button onClick={()=>adj(-1)} style={RB}>−</button>
-                <span style={{fontSize:13,color:"#57534E",minWidth:76,textAlign:"center"}}>Exp {item.expiryDate.slice(5)}</span>
+                <span style={{fontSize:13,color:"#57534E",minWidth:76,textAlign:"center"}}>Exp {fmtMMDD(item.expiryDate)}</span>
                 <button onClick={()=>adj(1)} style={RB}>+</button>
               </div>
               <button onClick={()=>onUpdate({...item,frozen:!item.frozen})} style={{
@@ -320,7 +330,7 @@
           <div>
             <span style={{fontSize:15,color:"#78716C",textDecoration:"line-through"}}>{item.name}</span>
             <span style={{fontSize:12,color:"#A8A29E",marginLeft:8}}>{cat.emoji}</span>
-            <div style={{fontSize:11,color:"#A8A29E",marginTop:2}}>Used on {item.usedDate}</div>
+            <div style={{fontSize:11,color:"#A8A29E",marginTop:2}}>Used on {fmtMMDD(item.usedDate)}</div>
           </div>
           <button onClick={()=>onUndo(item.id)} style={{background:"#fff",border:"1.5px solid #D6D3D1",borderRadius:8,padding:"5px 12px",fontSize:12,cursor:"pointer",color:"#57534E",fontWeight:600}}>↩ Undo</button>
         </div>
@@ -515,7 +525,8 @@
 
       return (
         <div style={{maxWidth:480,margin:"0 auto",minHeight:"100vh",background:"linear-gradient(180deg,#FEFCE8 0%,#FFF7ED 30%,#FFFBEB 100%)",paddingBottom:80}}>
-          <div style={{padding:"20px 20px 10px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{padding:"16px 20px 0",fontSize:13,color:"#A8A29E",fontWeight:500}}>{fmtToday()}</div>
+          <div style={{padding:"8px 20px 10px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
             <div>
               <div style={{fontSize:26,fontWeight:800,color:"#1C1917",letterSpacing:-0.5}}>🥬 EatFresh</div>
               <div style={{fontSize:13,color:"#78716C",marginTop:2}}>
@@ -554,7 +565,7 @@
                 </div>
               ):(
                 <>
-                  <div style={{fontSize:11,color:"#A8A29E",textAlign:"center",marginBottom:2}}>← Swipe left to mark as used</div>
+                  <div style={{fontSize:11,color:"#A8A29E",textAlign:"center",marginBottom:2}}>← Swipe right to mark as used →</div>
                   {sorted.map(item=><ItemCard key={item.id} item={item} onUpdate={updateItem} onUse={markUsed} />)}
                 </>
               )
