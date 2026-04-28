@@ -177,15 +177,15 @@
     async function fetchAndDeleteSheets(token, onProgress) {
       // List spreadsheets matching the Gemini Gem naming pattern
       const q = encodeURIComponent(`mimeType='application/vnd.google-apps.spreadsheet' and name contains '${SHEET_NAME_PATTERN}' and trashed=false`);
-      const listRes = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=createdTime desc&fields=files(id,name)`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=createdTime%20desc&fields=files(id,name)`;
+      console.log("[EatFresh] Drive query:", decodeURIComponent(q));
+      const listRes = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!listRes.ok) {
         const err = await listRes.text();
-        throw new Error(`Failed to list sheets (${listRes.status}): ${err.slice(0, 100)}`);
+        throw new Error(`Failed to list sheets (${listRes.status}): ${err.slice(0, 200)}`);
       }
       const { files } = await listRes.json();
+      console.log("[EatFresh] Sheets found:", files);
       if (!files?.length) return [];
 
       const allItems = [];
@@ -200,6 +200,7 @@
         );
         if (sheetRes.ok) {
           const { values } = await sheetRes.json();
+          console.log(`[EatFresh] Sheet "${file.name}" values:`, values);
           if (values && values.length > 1) {
             for (let i = 1; i < values.length; i++) {
               const [name, rawCat, rawDate] = values[i] || [];
@@ -212,6 +213,8 @@
               });
             }
           }
+        } else {
+          console.warn(`[EatFresh] Failed to read sheet "${file.name}":`, sheetRes.status);
         }
 
         // Delete processed sheet
