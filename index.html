@@ -620,10 +620,15 @@
 
     // ─── Boot ────────────────────────────────────────────────────────
     ReactDOM.createRoot(document.getElementById("root")).render(<EatFresh />);
+  </script>
 
-    // Register service worker
+  <script>
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js");
+      window.addEventListener("load", function() {
+        navigator.serviceWorker.register("sw.js", { scope: "/eatfresh/" })
+          .then(function(r) { console.log("[EatFresh] SW registered, scope:", r.scope); })
+          .catch(function(e) { console.error("[EatFresh] SW registration failed:", e); });
+      });
     }
   </script>
 </body>
