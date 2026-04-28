@@ -1,0 +1,14 @@
+{
+  "name": "EatFresh",
+  "short_name": "EatFresh",
+  "description": "Keep track of what's in the fridge. Waste less, eat fresher.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#FEFCE8",
+  "theme_color": "#16A34A",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
