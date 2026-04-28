@@ -38,7 +38,7 @@
     // CONFIG — replace with your wife's GCP project Client ID
     // ═══════════════════════════════════════════════════════════════════
     const GOOGLE_CLIENT_ID = "284244049564-skrtfguqrasoil6ct9ktms3m783ggdna.apps.googleusercontent.com";
-    const SCOPES = "https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/drive.file";
+    const SCOPES = "https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/drive";
     const SHEET_NAME_PATTERN = "Receipt"; // Gemini Gem names sheets "Receipt_YYYYMMDD_HHmmss"
 
     // ─── Constants ───────────────────────────────────────────────────
@@ -181,7 +181,10 @@
         `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=createdTime desc&fields=files(id,name)`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      if (!listRes.ok) throw new Error("Failed to list sheets");
+      if (!listRes.ok) {
+        const err = await listRes.text();
+        throw new Error(`Failed to list sheets (${listRes.status}): ${err.slice(0, 100)}`);
+      }
       const { files } = await listRes.json();
       if (!files?.length) return [];
 
